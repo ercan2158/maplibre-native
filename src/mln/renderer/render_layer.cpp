@@ -24,6 +24,7 @@ RenderLayer::RenderLayer(Immutable<style::LayerProperties> properties)
 
 void RenderLayer::transition(const TransitionParameters& parameters, Immutable<style::Layer::Impl> newImpl) {
     baseImpl = std::move(newImpl);
+    ++styleRevision;
     transition(parameters);
 }
 
