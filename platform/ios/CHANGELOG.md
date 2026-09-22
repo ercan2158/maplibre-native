@@ -2,6 +2,10 @@
 
 MapLibre welcomes participation and contributions from everyone. Please read [`MapLibre iOS Developer Guide`](https://maplibre.org/maplibre-native/docs/book/ios/index.html) to get started.
 
+## main
+
+- feat(ios): add `-[MLNMapView captureNextFrameWithHandler:]`, which hands the next rendered frame over as a BGRA `CVPixelBuffer`, for recording the map frame by frame (Metal only).
+
 ## 6.29.0
 
 - fix(core): accept alpha in hsl colors ([#4435](https://github.com/maplibre/maplibre-native/pull/4435)).

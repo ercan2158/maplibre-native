@@ -1,3 +1,4 @@
+#import <CoreVideo/CoreVideo.h>
 #import <UIKit/UIKit.h>
 
 #import "MLNBackendResource.h"
@@ -547,6 +548,15 @@ MLN_EXPORT
  @param exaggeration The vertical exaggeration multiplier to apply to the elevation
     data. A value of `1.0` renders true-scale elevation.
  */
+/**
+ Renders the map once more and hands that frame to `handler` as a BGRA pixel buffer, as drawn
+ (map only, no UIKit views over it). `nil` where the renderer cannot capture. For making videos
+ frame by frame: set the camera, wait for
+ ``MLNMapViewDelegate/mapViewDidFinishRenderingFrame:fullyRendered:`` with `fullyRendered`, then
+ capture.
+ */
+- (void)captureNextFrameWithHandler:(void (^)(CVPixelBufferRef _Nullable pixelBuffer))handler;
+
 - (void)setTerrainWithSourceIdentifier:(nullable NSString *)sourceIdentifier
                           exaggeration:(CGFloat)exaggeration
     NS_SWIFT_NAME(setTerrain(sourceIdentifier:exaggeration:));
