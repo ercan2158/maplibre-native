@@ -2214,6 +2214,10 @@ static_assert(static_cast<uint8_t>(MLNTerrainSkirtLengthNone) ==
 
   if (pan.state == UIGestureRecognizerStateBegan) {
     self.userTrackingMode = MLNUserTrackingModeNone;
+    // With terrain, drag the ground being looked at, not a sea-level plane under it.
+    if (self.style.terrain) {
+      self.mbglMap.anchorCenterOnTerrain();
+    }
 
     [self notifyGestureDidBegin];
   } else if (pan.state == UIGestureRecognizerStateChanged) {
@@ -2286,6 +2290,10 @@ static_assert(static_cast<uint8_t>(MLNTerrainSkirtLengthNone) ==
   self.cameraChangeReasonBitmask |= MLNCameraChangeReasonGesturePinch;
 
   if (pinch.state == UIGestureRecognizerStateBegan) {
+    // With terrain, turn round the ground being looked at, not a sea-level point behind it.
+    if (self.style.terrain) {
+      self.mbglMap.anchorCenterOnTerrain();
+    }
     self.scale = powf(2, [self zoomLevel]);
 
     if (abs(pinch.velocity) > abs(self.rotate.velocity)) {
@@ -2395,6 +2403,10 @@ static_assert(static_cast<uint8_t>(MLNTerrainSkirtLengthNone) ==
     return;
   }
 
+  if (rotate.state == UIGestureRecognizerStateBegan && self.style.terrain) {
+    // With terrain, turn round the ground being looked at, not a sea-level point behind it.
+    self.mbglMap.anchorCenterOnTerrain();
+  }
   if (rotate.state == UIGestureRecognizerStateBegan || !self.isRotating) {
     self.angle = MLNRadiansFromDegrees(*self.mbglMap.getCameraOptions().bearing) * -1;
 
@@ -2678,6 +2690,10 @@ static_assert(static_cast<uint8_t>(MLNTerrainSkirtLengthNone) ==
   static CGFloat initialPitch;
 
   if (twoFingerDrag.state == UIGestureRecognizerStateBegan) {
+    // With terrain, turn round the ground being looked at, not a sea-level point behind it.
+    if (self.style.terrain) {
+      self.mbglMap.anchorCenterOnTerrain();
+    }
     CGPoint midPoint = [twoFingerDrag translationInView:twoFingerDrag.view];
     // In the following if and for the first execution middlePoint
     // will be equal to dragGestureMiddlePoint and the resulting
