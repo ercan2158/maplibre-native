@@ -148,14 +148,13 @@ std::set<UnwrappedTileID> RenderTerrain::computeMeshCover(
     // undersamples the DEM, aliasing the relief into waves on the fixed 128x128 mesh. Still the
     // elevation-aware ideal cover from the view, not the DEM's loaded tile set.
     const uint16_t terrainCoverTileSize = demSource->getTileSize();
-    // Mesh deeper than the DEM goes, as maplibre-gl-js does: a terrain tile past the DEM's maxzoom
-    // samples its closest DEM ancestor through the sub-tile offset (the per-tile lookup already
-    // walks ancestors), and its 1024 px drape target then covers a smaller area. Capped at the
-    // DEM maxzoom, a close-up at z16 over a z12 DEM stretched each target 8x (dotted roads,
-    // blocky fills); `terrainOverzoomLevels` more levels keep draped content near 1:1.
-    const Range<uint8_t> zoomRange{
-        0,
-        static_cast<uint8_t>(std::min<int>(demSource->getMaxZoom() + terrainOverzoomLevels, util::DEFAULT_MAX_ZOOM))};
+    // Mesh as deep as the view goes, past the DEM's maxzoom, as maplibre-gl-js does (its terrain
+    // tiles go to z22 whatever the DEM's maxzoom): a terrain tile past the DEM's maxzoom samples
+    // its closest DEM ancestor through the sub-tile offset (the per-tile lookup walks ancestors),
+    // and its drape target covers no more ground than the view shows at that zoom. Any cap below
+    // the view's zoom magnifies the drape by 2x per level: capped three levels past a z14 DEM, a
+    // chase camera at z19 drew roads and labels from targets stretched 4x, blurred and streaked.
+    const Range<uint8_t> zoomRange{0, util::DEFAULT_MAX_ZOOM};
 
     // LOD parameters from the frame drive the same near-high/far-low zoom
     // selection every other source uses, so the near field drapes at a higher
