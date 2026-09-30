@@ -87,7 +87,7 @@ void FillExtrusionLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintP
         const auto& translation = evaluated.get<FillExtrusionTranslate>();
         const auto anchor = evaluated.get<FillExtrusionTranslateAnchor>();
         constexpr bool inViewportPixelUnits = false; // from RenderTile::translatedMatrix
-        constexpr bool nearClipped = true;
+        constexpr bool nearClipped = true; // as a 3D drawable it gets projMatrix3D, near-clipped without terrain
         // Fill extrusion is elevated, not draped
         const auto matrix = getTileMatrix(tileID,
                                           parameters,
