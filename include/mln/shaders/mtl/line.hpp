@@ -299,8 +299,12 @@ FragmentStage vertex vertexMain(thread const VertexStage vertx [[stage_in]],
         .position    = position,
         .width2      = float2(outset, inset),
         .normal      = v_normal,
+        // Into a terrain drape target, the edge fades over one of the target's texels (drape_tile.w
+        // is its size): the screen's 1 / DEVICE_PIXEL_RATIO of a map pixel is a fraction of a texel
+        // there, and the magnified drape then showed the unsmoothed edge as a sawtooth.
         .gamma_scale = drawable.pad1 != 0.0
-                           ? half(1.0)
+                           ? half(max(1.0, 512.0 * exp2(paintParams.map_zoom - paintParams.drape_tile.x) /
+                                               paintParams.drape_tile.w * DEVICE_PIXEL_RATIO))
                            : half(extrude_length_without_perspective / extrude_length_with_perspective),
 
 #if !defined(HAS_UNIFORM_u_color)
