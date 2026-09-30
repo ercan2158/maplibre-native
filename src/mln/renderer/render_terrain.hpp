@@ -182,7 +182,7 @@ public:
     std::optional<LatLng> pickLatLng(const TransformState& state, const ScreenCoordinate& pixel) const;
 
     /// Zoom levels of DEM ancestors kept loaded above the cover (TileParameters::retainAncestorLevels).
-    /// The cover follows the declared maxzoom (16 with overzoom), while layers can draw from tiles
+    /// The cover follows the view's zoom, past the DEM's maxzoom, while layers can draw from tiles
     /// as shallow as ~z9 (far-field distance LOD, low-maxzoom sources), so reach eight levels up;
     /// the tile count shrinks by 4x per level, so this is a handful of tiles.
     static constexpr uint8_t demAncestorLevels = 8;
