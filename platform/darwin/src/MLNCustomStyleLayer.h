@@ -34,6 +34,9 @@ typedef struct MLNStyleLayerDrawingContext {
   MLNMatrix4 projectionMatrix;
   /// A 4×4 matrix representing the map view’s current near clip projection state.
   MLNMatrix4 nearClippedProjectionMatrix;
+  /// The projection the map's 3D terrain and 3D buildings are drawn with, in Metal's clip
+  /// space (z from 0 to 1). Draw 3D geometry with it to test depth against them.
+  MLNMatrix4 projectionMatrix3D;
 } MLNStyleLayerDrawingContext;
 
 /// A style layer that is rendered by Metal code that you provide.

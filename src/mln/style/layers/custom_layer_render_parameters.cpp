@@ -19,6 +19,7 @@ CustomLayerRenderParameters::CustomLayerRenderParameters(const mln::PaintParamet
     state.getProjMatrix(projMatrix);
     projectionMatrix = projMatrix;
     nearClippedProjectionMatrix = paintParameters.transformParams.nearClippedProjMatrix;
+    projectionMatrix3D = paintParameters.projMatrix3D();
 }
 
 } // namespace style

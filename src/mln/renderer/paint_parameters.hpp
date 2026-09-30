@@ -128,6 +128,15 @@ public:
 
     mat4 matrixForTile(const UnwrappedTileID&, bool aligned = false) const;
 
+    /// The projection shared by everything that is depth-tested in 3D - the terrain, the
+    /// fill-extrusions, 3D drawables and custom layers - so that one depth buffer orders them
+    /// all alike. With terrain it is the terrain's `projMatrix`; without, the near-clipped one
+    /// fill-extrusions have always used for depth precision. On the backends whose clip volume
+    /// is z in [0, 1] (Metal, Vulkan, WebGPU) its z is remapped from OpenGL's [-1, 1]: left in
+    /// OpenGL's convention, everything in the near half of the view would be clipped away, and
+    /// its depth would disagree with the terrain's.
+    mat4 projMatrix3D() const;
+
     /// The matrix that places a tile's clipping-mask quad where that tile's geometry
     /// actually lands. Outside a drape pass this is `matrixForTile`. Inside one, draped
     /// geometry does not use the camera matrix at all - it uses a tile-local orthographic
