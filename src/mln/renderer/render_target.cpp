@@ -101,10 +101,11 @@ void RenderTarget::setDrapeTileID(const UnwrappedTileID& id) {
                                            .maxAnisotropy = 16,
                                            .mipmapped = true});
     const auto z = static_cast<float>(id.canonical.z);
+    // w: non-zero while drawing into a drape target, and the target's size in texels
     drapeTileValues = {z,
                        static_cast<float>(id.canonical.x) + static_cast<float>(id.wrap) * std::exp2(z),
                        static_cast<float>(id.canonical.y),
-                       1.0f};
+                       static_cast<float>(getTexture()->getSize().width)};
 }
 
 void RenderTarget::updateDrapeGlobalUBO(const shaders::GlobalPaintParamsUBO& params, gfx::Context& context_) {
