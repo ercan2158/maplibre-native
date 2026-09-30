@@ -92,6 +92,14 @@ void RenderTarget::upload(gfx::UploadPass& uploadPass) {
 
 void RenderTarget::setDrapeTileID(const UnwrappedTileID& id) {
     drapeTileID = id;
+    // The terrain samples a drape at a grazing angle: squeezed along the view, stretched across
+    // it. Mipmaps and anisotropic filtering keep roads and labels whole there instead of breaking
+    // into a sawtooth of texels (backends without them ignore both).
+    getTexture()->setSamplerConfiguration({.filter = gfx::TextureFilterType::Linear,
+                                           .wrapU = gfx::TextureWrapType::Clamp,
+                                           .wrapV = gfx::TextureWrapType::Clamp,
+                                           .maxAnisotropy = 16,
+                                           .mipmapped = true});
     const auto z = static_cast<float>(id.canonical.z);
     drapeTileValues = {z,
                        static_cast<float>(id.canonical.x) + static_cast<float>(id.wrap) * std::exp2(z),
