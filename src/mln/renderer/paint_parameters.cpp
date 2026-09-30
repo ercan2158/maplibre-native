@@ -122,7 +122,10 @@ mat4 PaintParameters::matrixForTile(const UnwrappedTileID& tileID, bool aligned)
 }
 
 mat4 PaintParameters::projMatrix3D() const {
-    mat4 matrix = terrain ? transformParams.projMatrix : transformParams.nearClippedProjMatrix;
+    if (!terrain) {
+        return transformParams.nearClippedProjMatrix;
+    }
+    mat4 matrix = transformParams.projMatrix;
 #if !MLN_RENDER_BACKEND_OPENGL
     // z' = (z + w) / 2: halve row 2 and fold in row 3 (w)
     matrix[2] = 0.5 * (matrix[2] + matrix[3]);
