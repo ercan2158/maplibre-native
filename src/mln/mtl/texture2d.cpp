@@ -7,6 +7,8 @@
 #include <Metal/MTLRenderCommandEncoder.hpp>
 #include <Metal/MTLSampler.hpp>
 
+#include <algorithm>
+
 namespace mln {
 namespace mtl {
 
@@ -19,10 +21,16 @@ Texture2D::~Texture2D() {
 
 gfx::Texture2D& Texture2D::setSamplerConfiguration(const SamplerState& samplerState_) noexcept {
     if (samplerState.filter == samplerState_.filter && samplerState.wrapU == samplerState_.wrapU &&
-        samplerState.wrapV == samplerState_.wrapV) {
+        samplerState.wrapV == samplerState_.wrapV && samplerState.maxAnisotropy == samplerState_.maxAnisotropy &&
+        samplerState.mipmapped == samplerState_.mipmapped) {
         return *this;
     }
 
+    if (samplerState.mipmapped != samplerState_.mipmapped) {
+        // The mip levels are part of the texture, not the sampler
+        destroyMetalTexture();
+        textureDirty = true;
+    }
     samplerState = samplerState_;
     samplerStateDirty = true;
     return *this;
@@ -159,7 +167,7 @@ void Texture2D::createMetalTexture() {
 
     // Create a new texture object
     if (auto textureDescriptor = NS::RetainPtr(
-            MTL::TextureDescriptor::texture2DDescriptor(format, size.width, size.height, /*mipmapped=*/false))) {
+            MTL::TextureDescriptor::texture2DDescriptor(format, size.width, size.height, samplerState.mipmapped))) {
         textureDescriptor->setUsage(usage);
 #if TARGET_OS_SIMULATOR || defined(__x86_64__)
         switch (format) {
@@ -241,6 +249,12 @@ void Texture2D::updateSamplerConfiguration() {
     samplerDescriptor->setTAddressMode(samplerState.wrapV == gfx::TextureWrapType::Clamp
                                            ? MTL::SamplerAddressModeClampToEdge
                                            : MTL::SamplerAddressModeRepeat);
+    if (samplerState.mipmapped) {
+        samplerDescriptor->setMipFilter(samplerState.filter == gfx::TextureFilterType::Nearest
+                                            ? MTL::SamplerMipFilterNearest
+                                            : MTL::SamplerMipFilterLinear);
+    }
+    samplerDescriptor->setMaxAnisotropy(std::max<NS::UInteger>(1, samplerState.maxAnisotropy));
     metalSamplerState = context.createMetalSamplerState(samplerDescriptor);
     if (!metalSamplerState) {
         throw std::bad_alloc();

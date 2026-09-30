@@ -99,6 +99,14 @@ public:
 
     void swap() override {
         assert(commandBuffer);
+        // A mipmapped target (a terrain drape) gets its smaller levels from what was just drawn
+        if (auto* texture = static_cast<Texture2D*>(colorTexture.get())->getMetalTexture();
+            texture && texture->mipmapLevelCount() > 1) {
+            if (auto* blit = commandBuffer->blitCommandEncoder()) {
+                blit->generateMipmaps(texture);
+                blit->endEncoding();
+            }
+        }
         commandBuffer->commit();
         commandBuffer->waitUntilCompleted();
         commandBuffer.reset();
