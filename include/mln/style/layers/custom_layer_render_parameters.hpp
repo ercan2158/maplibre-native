@@ -30,6 +30,11 @@ struct CustomLayerRenderParameters {
     /// A 4×4 matrix representing the map view’s current near clip projection state.
     std::array<double, 16> nearClippedProjectionMatrix;
 
+    /// The projection the map's own 3D geometry (terrain, fill-extrusions) is drawn with, in
+    /// the renderer's clip convention (on Metal, Vulkan and WebGPU, z in [0, 1]). Geometry drawn
+    /// with it depth-tests correctly against the terrain and the 3D buildings.
+    std::array<double, 16> projectionMatrix3D;
+
     CustomLayerRenderParameters(const PaintParameters&);
 };
 

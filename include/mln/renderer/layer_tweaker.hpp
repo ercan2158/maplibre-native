@@ -74,7 +74,8 @@ protected:
     /// Determine whether this tweaker should apply to the given drawable
     bool checkTweakDrawable(const gfx::Drawable&) const;
 
-    /// Multiplies with the projection matrix (either default, near clipped or aligned) for the given drawable
+    /// Multiplies with the projection matrix (either default, near clipped or aligned) for the given drawable;
+    /// a 3D drawable always gets PaintParameters::projMatrix3D
     static void multiplyWithProjectionMatrix(/*in-out*/ mat4& matrix,
                                              const PaintParameters& parameters,
                                              const gfx::Drawable& drawable,
