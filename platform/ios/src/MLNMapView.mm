@@ -4653,6 +4653,31 @@ static void *windowScreenContext = &windowScreenContext;
   return self.mbglMap.latLngForPixel(pixel).wrapped();
 }
 
+- (nullable NSNumber *)terrainElevationAtCoordinate:(CLLocationCoordinate2D)coordinate {
+  if (!_rendererFrontend || !CLLocationCoordinate2DIsValid(coordinate)) return nil;
+  mln::Renderer *renderer = _rendererFrontend->getRenderer();
+  if (!renderer) return nil;
+  std::optional<double> elevation =
+      renderer->queryTerrainElevation(MLNLatLngFromLocationCoordinate2D(coordinate));
+  return elevation ? @(*elevation) : nil;
+}
+
+- (void)setCameraCenter:(CLLocationCoordinate2D)center
+               altitude:(CLLocationDistance)altitude
+                   zoom:(double)zoom
+              direction:(CLLocationDirection)direction
+                  pitch:(CGFloat)pitch
+                padding:(UIEdgeInsets)padding {
+  if (!_mbglMap || !CLLocationCoordinate2DIsValid(center)) return;
+  self.mbglMap.jumpTo(mln::CameraOptions()
+                          .withCenter(MLNLatLngFromLocationCoordinate2D(center))
+                          .withCenterAltitude(altitude)
+                          .withZoom(zoom)
+                          .withBearing(direction)
+                          .withPitch(pitch)
+                          .withPadding(MLNEdgeInsetsFromNSEdgeInsets(padding)));
+}
+
 - (CGPoint)convertCoordinate:(CLLocationCoordinate2D)coordinate
                toPointToView:(nullable UIView *)view {
   if (!CLLocationCoordinate2DIsValid(coordinate)) {

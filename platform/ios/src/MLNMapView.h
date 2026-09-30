@@ -584,6 +584,27 @@ MLN_EXPORT
 @property (nonatomic, assign) MLNTerrainSkirtLength terrainSkirtLength;
 
 /**
+ The terrain's height at a coordinate, in metres times the terrain's exaggeration (the height the
+ map draws it at), or `nil` where no terrain tile is loaded. Added by longvoie.
+ */
+- (nullable NSNumber *)terrainElevationAtCoordinate:(CLLocationCoordinate2D)coordinate
+    NS_SWIFT_NAME(terrainElevation(at:));
+
+/**
+ Moves the camera at once to look at `center`, `altitude` metres above sea level (the terrain's
+ drawn height there, so exaggerated like it), from `zoom`'s distance, facing `direction` degrees
+ from north and tipped `pitch` degrees from straight down; `padding` moves the focal point. Added
+ by longvoie.
+ */
+- (void)setCameraCenter:(CLLocationCoordinate2D)center
+               altitude:(CLLocationDistance)altitude
+                   zoom:(double)zoom
+              direction:(CLLocationDirection)direction
+                  pitch:(CGFloat)pitch
+                padding:(UIEdgeInsets)padding
+    NS_SWIFT_NAME(setCamera(center:altitude:zoom:direction:pitch:padding:));
+
+/**
  Frustum offset used to disable rendering of elements at the edge of the screen
 
  Offset applied to camera frustum and scissor rectangle. The camrea frustum is modified
