@@ -44,6 +44,9 @@ public:
     mat4 projMatrix;
     mat4 alignedProjMatrix;
     mat4 nearClippedProjMatrix;
+    /// The projection for 3D geometry over terrain: the near plane at a fiftieth of the view's
+    /// height, as maplibre-gl-js puts it with terrain (see PaintParameters::projMatrix3D)
+    mat4 terrainProjMatrix;
     const TransformState state;
 };
 
@@ -123,6 +126,16 @@ public:
     gfx::ColorMode colorModeForRenderPass() const;
 
     mat4 matrixForTile(const UnwrappedTileID&, bool aligned = false) const;
+
+    /// The projection shared by everything that is depth-tested in 3D - the terrain, the
+    /// fill-extrusions, 3D drawables and custom layers - so that one depth buffer orders them
+    /// all alike. Without terrain it is the near-clipped projection fill-extrusions have always
+    /// used, unchanged. With terrain it is `terrainProjMatrix`, its clip z remapped from
+    /// OpenGL's [-1, 1] to [0, 1] on the backends that clip there (Metal, Vulkan, WebGPU), as the
+    /// terrain needs: left in OpenGL's convention, the ground in the near half of the view would
+    /// be clipped away. Not remapped without terrain: the remap halves the depth resolution, and
+    /// fill-extrusion walls drawn twice across a tile border then show through each other.
+    mat4 projMatrix3D() const;
 
     /// The matrix that places a tile's clipping-mask quad where that tile's geometry
     /// actually lands. Outside a drape pass this is `matrixForTile`. Inside one, draped

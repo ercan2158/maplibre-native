@@ -96,17 +96,22 @@ void LayerTweaker::updateProperties(Immutable<style::LayerProperties> newProps) 
 
 void LayerTweaker::multiplyWithProjectionMatrix(/*in-out*/ mat4& matrix,
                                                 const PaintParameters& parameters,
-                                                [[maybe_unused]] const gfx::Drawable& drawable,
+                                                const gfx::Drawable& drawable,
                                                 bool nearClipped,
                                                 bool aligned) {
+    // 3D drawables test depth against the terrain and each other: they share one projection
+    if (drawable.getIs3D()) {
+        matrix::multiply(matrix, parameters.projMatrix3D(), matrix);
+        return;
+    }
     // nearClippedMatrix has near plane moved further, to enhance depth buffer precision
     const auto& projMatrixRef = aligned ? parameters.transformParams.alignedProjMatrix
                                         : (nearClipped ? parameters.transformParams.nearClippedProjMatrix
                                                        : parameters.transformParams.projMatrix);
 #if !MLN_RENDER_BACKEND_OPENGL
-    // If this drawable is participating in depth testing, offset the
+    // If this 2D drawable is participating in depth testing, offset the
     // projection matrix NDC depth range for the drawable's layer and sublayer.
-    if (!drawable.getIs3D() && drawable.getEnableDepth()) {
+    if (drawable.getEnableDepth()) {
         // copy and adjust the projection matrix
         mat4 projMatrix = projMatrixRef;
         projMatrix[14] -= ((1 + parameters.currentLayer) * PaintParameters::numSublayers -

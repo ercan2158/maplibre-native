@@ -32,7 +32,8 @@ public:
 
 protected:
 #if MLN_UBO_CONSOLIDATION
-    gfx::UniformBufferPtr drawableUniformBuffer;
+    gfx::UniformBufferPtr surfaceDrawableUniformBuffer;
+    gfx::UniformBufferPtr depthDrawableUniformBuffer;
 #endif
 
     const RenderTerrain* terrain = nullptr;

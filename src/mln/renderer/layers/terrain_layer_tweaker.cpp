@@ -23,6 +23,7 @@ void TerrainLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamet
     if (layerGroup.empty() || !terrain) {
         return;
     }
+    const bool isDepthPass = &layerGroup == terrain->getDepthLayerGroup().get();
 
     auto& context = parameters.context;
 
@@ -64,26 +65,29 @@ void TerrainLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamet
 
         const UnwrappedTileID tileID = drawable.getTileID()->toUnwrapped();
 
-        // Calculate transformation matrix for this terrain tile
-        // This uses the same matrix calculation as other layers. The metres->world
-        // pixels elevation scale (pixelsPerMeter) is baked into the projection matrix
-        // in TransformState::getProjMatrix, so it applies here and to the elevated
-        // symbol / circle layers consistently, matching maplibre-gl-js.
-        mat4 matrix = parameters.matrixForTile(tileID);
-
+        // Calculate transformation matrix for this terrain tile. The metres->world pixels
+        // elevation scale (pixelsPerMeter) is baked into the projection matrix in
+        // TransformState::getProjMatrix, so it applies here and to the elevated symbol /
+        // circle layers consistently, matching maplibre-gl-js. The projection is the one
+        // fill-extrusions and custom layers share (projMatrix3D), so buildings, hills and a
+        // custom layer's models hide each other by one depth; on Vulkan, Metal and WebGPU its
+        // clip z is already remapped to their [0, 1], so terrain in the near half of the GL
+        // clip volume is not clipped away.
+        // The depth pass for symbol occlusion keeps projMatrix: the symbols compare their own
+        // depth, projected with it, against what this pass packs.
+        mat4 matrix;
+        parameters.state.matrixFor(matrix, tileID);
+        if (isDepthPass) {
+            matrix::multiply(matrix, parameters.transformParams.projMatrix, matrix);
 #if !MLN_RENDER_BACKEND_OPENGL
-        // matrixForTile builds a GL-convention projection (clip z in [-1, 1]); Vulkan,
-        // Metal and WebGPU clip to [0, 1]. Remap clip z from [-1, 1] to [0, 1] the usual
-        // way, z' = (z + w) / 2, so terrain that projects into the near half of the GL
-        // clip volume (z < 0) is not clipped away on those backends. Matches
-        // LayerTweaker::getTileMatrix and clipMatrixForTile, which remap the draped / RTT
-        // matrices for the same reason. Monotonic, so skirt-vs-surface depth ordering and
-        // the packed depth texture used for symbol occlusion are preserved; GL unchanged.
-        matrix[2] = 0.5 * (matrix[2] + matrix[3]);
-        matrix[6] = 0.5 * (matrix[6] + matrix[7]);
-        matrix[10] = 0.5 * (matrix[10] + matrix[11]);
-        matrix[14] = 0.5 * (matrix[14] + matrix[15]);
+            matrix[2] = 0.5 * (matrix[2] + matrix[3]);
+            matrix[6] = 0.5 * (matrix[6] + matrix[7]);
+            matrix[10] = 0.5 * (matrix[10] + matrix[11]);
+            matrix[14] = 0.5 * (matrix[14] + matrix[15]);
 #endif
+        } else {
+            matrix::multiply(matrix, parameters.projMatrix3D(), matrix);
+        }
 
 #if !MLN_UBO_CONSOLIDATION
         auto& drawableUniforms = drawable.mutableUniformBuffers();
@@ -109,6 +113,9 @@ void TerrainLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamet
 
 #if MLN_UBO_CONSOLIDATION
     const size_t drawableUBOVectorSize = sizeof(TerrainDrawableUBO) * drawableUBOVector.size();
+    // One buffer per layer group: the surface and the depth pass project differently, and a
+    // shared buffer left the surface drawn with the depth pass's matrices, written last.
+    auto& drawableUniformBuffer = isDepthPass ? depthDrawableUniformBuffer : surfaceDrawableUniformBuffer;
     if (!drawableUniformBuffer || drawableUniformBuffer->getSize() < drawableUBOVectorSize) {
         drawableUniformBuffer = context.createUniformBuffer(
             drawableUBOVector.data(), drawableUBOVectorSize, false, true);
