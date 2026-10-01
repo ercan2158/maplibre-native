@@ -15,11 +15,12 @@ void TexturePool::createRenderTarget(gfx::Context& context,
                                      std::optional<uint32_t> size) {
     // Keep an existing render target; recreating it every frame churns GL
     // texture memory and invalidates the texture bound to the terrain drawable.
-    // Only a target now asked to be larger is made again: one created small, far
-    // from the camera, stayed small (and blurred) once the camera came close.
+    // Only a target now asked to be another size is made again: one created small,
+    // far from the camera, stayed small (and blurred) once the camera came close,
+    // and one made full size kept its memory once the camera had moved on.
     if (auto it = renderTargets.find(id); it != renderTargets.end() && it->second) {
         const auto wanted = size.value_or(tileSize);
-        if (it->second->getTexture()->getSize().width >= wanted) {
+        if (it->second->getTexture()->getSize().width == wanted) {
             it->second->setClearColor(backgroundColor);
             return;
         }

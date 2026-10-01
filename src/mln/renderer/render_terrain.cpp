@@ -216,7 +216,55 @@ std::set<UnwrappedTileID> RenderTerrain::computeMeshCover(
     if (dilated.size() != out.size()) {
         out = util::frustumCull(coverParams, dilated);
     }
+
+    // Cap the mesh tile count: keep those nearest the camera, drop the farthest (the
+    // horizon tiles a high tilt pulls in). Nearest the camera, not the map centre: at a
+    // steep tilt the centre is far ahead, and the tiles right under the camera - the
+    // bottom corners of the screen, the biggest on it - would rank as far and be dropped,
+    // showing the skirts of the tiles behind them as streaks. Everything downstream - drape
+    // targets, re-renders, depth draws - scales with this count, so the cap applies here,
+    // to the cover the drape-target pool is built from too: applied only to the mesh, the
+    // pool kept a target (and its re-renders) for every tile of an uncapped cover.
+    // Per-mode cap (TerrainLoadBudget::maxMeshTiles), grown for views bigger than a phone's
+    // (terrainMeshTileCap): Quality keeps a generous cap so terrain render distance stays long;
+    // Balanced/Performance trade distance for frame time.
+    const size_t maxMeshTiles = updateParameters ? terrainMeshTileCap(updateParameters->terrainLoadMode,
+                                                                      static_cast<double>(state.getSize().width) *
+                                                                          static_cast<double>(state.getSize().height))
+                                                 : 0;
+    if (maxMeshTiles > 0 && out.size() > maxMeshTiles) {
+        const auto nearest = nearestToCamera(out, state);
+        out = std::set<UnwrappedTileID>(nearest.begin(), nearest.begin() + static_cast<std::ptrdiff_t>(maxMeshTiles));
+    }
     return out;
+}
+
+std::vector<UnwrappedTileID> RenderTerrain::nearestToCamera(const std::set<UnwrappedTileID>& tiles,
+                                                            const TransformState& state) {
+    // The ground under the camera in normalized web-mercator [0,1] (standard projection):
+    // the map center, moved back along the view by the camera's horizontal distance.
+    const LatLng center = state.getLatLng();
+    const double latRad = util::deg2rad(center.latitude());
+    const double back = state.getCameraToCenterDistance() * std::sin(state.getPitch()) /
+                        Projection::worldSize(state.getScale());
+    const double compass = -state.getBearing(); // radians, clockwise from north
+    const double cx = center.longitude() / 360.0 + 0.5 - back * std::sin(compass);
+    const double cy = 0.5 - std::log(std::tan(M_PI / 4.0 + latRad / 2.0)) / (2.0 * M_PI) + back * std::cos(compass);
+
+    const auto tileDist2 = [&](const UnwrappedTileID& id) {
+        const double scale = static_cast<double>(1u << id.canonical.z);
+        const double tx = (static_cast<double>(id.canonical.x) + 0.5) / scale + id.wrap;
+        const double ty = (static_cast<double>(id.canonical.y) + 0.5) / scale;
+        const double dx = tx - cx;
+        const double dy = ty - cy;
+        return dx * dx + dy * dy;
+    };
+
+    std::vector<UnwrappedTileID> sorted(tiles.begin(), tiles.end());
+    std::sort(sorted.begin(), sorted.end(), [&](const UnwrappedTileID& a, const UnwrappedTileID& b) {
+        return tileDist2(a) < tileDist2(b);
+    });
+    return sorted;
 }
 
 void RenderTerrain::prepareSource(RenderOrchestrator& orchestrator) {
@@ -330,49 +378,6 @@ void RenderTerrain::update(RenderOrchestrator& orchestrator,
     std::set<UnwrappedTileID> meshTiles = frameMeshCover ? std::move(*frameMeshCover)
                                                          : computeMeshCover(state, updateParameters);
     frameMeshCover.reset();
-
-    // Cap the mesh tile count: keep those nearest the camera, drop the farthest (the
-    // horizon tiles a high tilt pulls in). Nearest the camera, not the map centre: at a
-    // steep tilt the centre is far ahead, and the tiles right under the camera - the
-    // bottom corners of the screen, the biggest on it - would rank as far and be dropped,
-    // showing the skirts of the tiles behind them as streaks. Everything downstream - drape
-    // targets, re-renders, depth draws - scales with this count.
-    // Per-mode cap (TerrainLoadBudget::maxMeshTiles), grown for views bigger than a phone's
-    // (terrainMeshTileCap): Quality keeps a generous cap so terrain render distance stays long;
-    // Balanced/Performance trade distance for frame time.
-    const size_t maxMeshTiles = updateParameters ? terrainMeshTileCap(updateParameters->terrainLoadMode,
-                                                                      static_cast<double>(state.getSize().width) *
-                                                                          static_cast<double>(state.getSize().height))
-                                                 : 0;
-    if (maxMeshTiles > 0 && meshTiles.size() > maxMeshTiles) {
-        // The ground under the camera in normalized web-mercator [0,1] (standard projection):
-        // the map center, moved back along the view by the camera's horizontal distance.
-        const LatLng center = state.getLatLng();
-        const double latRad = util::deg2rad(center.latitude());
-        const double back = state.getCameraToCenterDistance() * std::sin(state.getPitch()) /
-                            Projection::worldSize(state.getScale());
-        const double compass = -state.getBearing(); // radians, clockwise from north
-        const double cx = center.longitude() / 360.0 + 0.5 - back * std::sin(compass);
-        const double cy = 0.5 - std::log(std::tan(M_PI / 4.0 + latRad / 2.0)) / (2.0 * M_PI) + back * std::cos(compass);
-
-        const auto tileDist2 = [&](const UnwrappedTileID& id) {
-            const double scale = static_cast<double>(1u << id.canonical.z);
-            const double tx = (static_cast<double>(id.canonical.x) + 0.5) / scale + id.wrap;
-            const double ty = (static_cast<double>(id.canonical.y) + 0.5) / scale;
-            const double dx = tx - cx;
-            const double dy = ty - cy;
-            return dx * dx + dy * dy;
-        };
-
-        std::vector<UnwrappedTileID> sorted(meshTiles.begin(), meshTiles.end());
-        std::partial_sort(
-            sorted.begin(),
-            sorted.begin() + static_cast<std::ptrdiff_t>(maxMeshTiles),
-            sorted.end(),
-            [&](const UnwrappedTileID& a, const UnwrappedTileID& b) { return tileDist2(a) < tileDist2(b); });
-        meshTiles = std::set<UnwrappedTileID>(sorted.begin(),
-                                              sorted.begin() + static_cast<std::ptrdiff_t>(maxMeshTiles));
-    }
 
     // Drop drawables and cached DEM textures for tiles that left the mesh tile
     // set, keeping everything else intact between frames

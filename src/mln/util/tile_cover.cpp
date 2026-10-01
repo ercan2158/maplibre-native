@@ -195,7 +195,10 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
     const bool adaptiveLod = state.tileLodMode == TileLodMode::Adaptive;
     // GL JS puts the Mercator cover on the variable-zoom function whenever terrain is
     // present, not only past a pitch threshold, so selecting Adaptive is itself the opt-in.
-    const bool allowVariableZoom = adaptiveLod || transform.getPitch() > state.tileLodPitchThreshold;
+    // Over terrain too, as GL JS does: meshed down to the view's zoom, a low-pitched view at a
+    // close zoom otherwise covered the screen with a hundred and more of the finest tiles.
+    const bool overTerrain = state.elevationProvider || transform.getCenterAltitude() != 0.0;
+    const bool allowVariableZoom = adaptiveLod || overTerrain || transform.getPitch() > state.tileLodPitchThreshold;
     const uint8_t minZoom = allowVariableZoom ? zoomRange.min : z;
     const bool variableZoomMode = state.tileLodMode == TileLodMode::Distance || adaptiveLod;
     const uint8_t maxZoom = (variableZoomMode && allowVariableZoom) ? zoomRange.max : z;
@@ -207,7 +210,6 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
     // low and flat, and the tiles around the point looked at then counted as far away and came
     // in coarse. Measure from the camera's own centre there, as maplibre-gl-js does
     // (transform.center); a flat map keeps the screen's centre.
-    const bool overTerrain = state.elevationProvider || transform.getCenterAltitude() != 0.0;
     const auto centerPoint = overTerrain ? TileCoordinate::fromLatLng(z, transform.getLatLng()).p
                                          : TileCoordinate::fromScreenCoordinate(
                                                transform,
