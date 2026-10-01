@@ -11,6 +11,7 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <mln/tile/tile_id.hpp>
 
@@ -67,6 +68,10 @@ private:
     // back to 1 to save GPU memory on constrained devices (each step is 4x memory/target).
     static constexpr uint32_t drapeTileSize = 512;
     static constexpr uint32_t drapeQualityFactor = 2;
+    /// At most this many drape targets get the full size (drapeTileSize * drapeQualityFactor)
+    static constexpr size_t fullSizeDrapes = 16;
+    /// The drape targets given the full size last frame
+    std::set<UnwrappedTileID> fullSizeDrapeIDs;
     TexturePool texturePool{drapeTileSize * drapeQualityFactor};
     /// The layer list the drape targets were baked from, and a fingerprint of its layer and
     /// source ids: a different style (a whole setStyleURL, say) must not keep showing the

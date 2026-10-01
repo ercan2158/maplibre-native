@@ -78,6 +78,11 @@ public:
     std::set<UnwrappedTileID> computeMeshCover(const TransformState& state,
                                                const std::shared_ptr<UpdateParameters>& updateParameters) const;
 
+    /// `tiles` ordered nearest the camera first: nearest its ground position, the map centre
+    /// moved back along the view. The mesh cap keeps the first; the full-size drapes go to them.
+    static std::vector<UnwrappedTileID> nearestToCamera(const std::set<UnwrappedTileID>& tiles,
+                                                        const TransformState& state);
+
     /// Resolve the DEM render source from the orchestrator if not yet bound.
     /// Renderer::Impl::render calls this before building the frame's drape-target
     /// pool from computeMeshCover: the source is otherwise first bound inside

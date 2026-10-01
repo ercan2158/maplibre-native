@@ -281,18 +281,33 @@ void Renderer::Impl::render(const RenderTree& renderTree, const std::shared_ptr<
             }
         }
         const std::set<UnwrappedTileID> demTileIDs = terrain->computeMeshCover(state, updateParameters);
-        // Full-size drape textures only for the finest two zoom levels of the cover - the ones
-        // nearest the camera, where the ground is magnified most; the coarser tiles further out
-        // get a quarter of the memory. At 1024 px each target costs ~9 MB with its stencil, and a
-        // pitched cover over relief runs to dozens of them: all full size, an older phone ran out
-        // of GPU memory. The finest level alone was too few: a single deeper tile at the screen's
-        // bottom edge dropped the tiles around the focus to a quarter, and the view blurred on
-        // and off as the camera moved.
+        // Full-size drape textures only for the finest two zoom levels of the cover, and of
+        // those only the `fullSizeDrapes` nearest the camera, where the ground is magnified most;
+        // the rest get a quarter of the memory. At 1024 px each target costs ~11 MB with its mips,
+        // depth and stencil, and a pitched cover over relief runs to dozens of them: all full
+        // size, an older phone ran out of GPU memory, and a current one reached 1.8 GB. The
+        // finest level alone was too few: a single deeper tile at the screen's bottom edge
+        // dropped the tiles around the focus to a quarter, and the view blurred on and off.
         uint8_t finestZoom = 0;
         for (const auto& id : demTileIDs) finestZoom = std::max(finestZoom, id.canonical.z);
+        // A target keeps its full size while it stays among the nearest half as many again, so
+        // targets at the edge of the budget do not flip size (each flip a new texture and a
+        // re-render) as the camera moves.
+        std::vector<UnwrappedTileID> candidates;
+        for (const auto& id : RenderTerrain::nearestToCamera(demTileIDs, state)) {
+            if (id.canonical.z + 1 >= finestZoom) candidates.push_back(id);
+        }
+        std::set<UnwrappedTileID> fullSize;
+        const size_t keepWithin = std::min(candidates.size(), fullSizeDrapes + fullSizeDrapes / 2);
+        for (size_t i = 0; i < keepWithin && fullSize.size() < fullSizeDrapes; ++i) {
+            if (fullSizeDrapeIDs.contains(candidates[i])) fullSize.insert(candidates[i]);
+        }
+        for (size_t i = 0; i < candidates.size() && fullSize.size() < fullSizeDrapes; ++i) {
+            fullSize.insert(candidates[i]);
+        }
+        fullSizeDrapeIDs = fullSize;
         for (const auto& id : demTileIDs) {
-            const uint32_t size = id.canonical.z + 1 >= finestZoom ? drapeTileSize * drapeQualityFactor
-                                                                   : drapeTileSize;
+            const uint32_t size = fullSize.contains(id) ? drapeTileSize * drapeQualityFactor : drapeTileSize;
             texturePool.createRenderTarget(context, id, renderTreeParameters.backgroundColor, size);
         }
         texturePool.removeStaleRenderTargets(demTileIDs);
