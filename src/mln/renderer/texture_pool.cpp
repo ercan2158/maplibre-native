@@ -13,10 +13,15 @@ void TexturePool::createRenderTarget(gfx::Context& context,
                                      const Color& backgroundColor,
                                      std::optional<uint32_t> size) {
     // Keep an existing render target; recreating it every frame churns GL
-    // texture memory and invalidates the texture bound to the terrain drawable
+    // texture memory and invalidates the texture bound to the terrain drawable.
+    // Only a target now asked to be larger is made again: one created small, far
+    // from the camera, stayed small (and blurred) once the camera came close.
     if (auto it = renderTargets.find(id); it != renderTargets.end() && it->second) {
-        it->second->setClearColor(backgroundColor);
-        return;
+        const auto wanted = size.value_or(tileSize);
+        if (it->second->getTexture()->getSize().width >= wanted) {
+            it->second->setClearColor(backgroundColor);
+            return;
+        }
     }
     // Drape targets render several overlapping draped tiles (a parent standing in for missing
     // children beside already-loaded children); the stencil clips them against each other,
