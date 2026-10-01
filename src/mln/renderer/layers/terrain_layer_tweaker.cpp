@@ -72,9 +72,21 @@ void TerrainLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamet
         // custom layer's models hide each other by one depth; on Vulkan, Metal and WebGPU its
         // clip z is already remapped to their [0, 1], so terrain in the near half of the GL
         // clip volume is not clipped away.
+        // The depth pass for symbol occlusion keeps projMatrix: the symbols compare their own
+        // depth, projected with it, against what this pass packs.
         mat4 matrix;
         parameters.state.matrixFor(matrix, tileID);
-        matrix::multiply(matrix, parameters.projMatrix3D(), matrix);
+        if (&layerGroup == terrain->getDepthLayerGroup().get()) {
+            matrix::multiply(matrix, parameters.transformParams.projMatrix, matrix);
+#if !MLN_RENDER_BACKEND_OPENGL
+            matrix[2] = 0.5 * (matrix[2] + matrix[3]);
+            matrix[6] = 0.5 * (matrix[6] + matrix[7]);
+            matrix[10] = 0.5 * (matrix[10] + matrix[11]);
+            matrix[14] = 0.5 * (matrix[14] + matrix[15]);
+#endif
+        } else {
+            matrix::multiply(matrix, parameters.projMatrix3D(), matrix);
+        }
 
 #if !MLN_UBO_CONSOLIDATION
         auto& drawableUniforms = drawable.mutableUniformBuffers();

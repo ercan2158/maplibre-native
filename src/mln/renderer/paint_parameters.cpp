@@ -34,6 +34,8 @@
 #include <mln/vulkan/context.hpp>
 #endif // MLN_RENDER_BACKEND_VULKAN
 
+#include <algorithm>
+
 namespace mln {
 
 TransformParameters::TransformParameters(const TransformState& state_)
@@ -50,6 +52,12 @@ TransformParameters::TransformParameters(const TransformState& state_)
     // very close empty space, for layer types (fill-extrusion) that use the
     // depth buffer to emulate real-world space.
     state.getProjMatrix(nearClippedProjMatrix, static_cast<uint16_t>(0.1 * state.getCameraToCenterDistance()));
+
+    // Over terrain the ground can come close to a low camera, so the near plane cannot go as far
+    // out as the fill-extrusions' own; with projMatrix's plane of 1, though, the depth buffer
+    // could not tell a distant roof from the wall beside it, and buildings flickered.
+    state.getProjMatrix(terrainProjMatrix,
+                        static_cast<uint16_t>(std::max(1.0, static_cast<double>(state.getSize().height) / 50.0)));
 }
 
 PaintParameters::PaintParameters(gfx::Context& context_,
@@ -125,7 +133,7 @@ mat4 PaintParameters::projMatrix3D() const {
     if (!terrain) {
         return transformParams.nearClippedProjMatrix;
     }
-    mat4 matrix = transformParams.projMatrix;
+    mat4 matrix = transformParams.terrainProjMatrix;
 #if !MLN_RENDER_BACKEND_OPENGL
     // z' = (z + w) / 2: halve row 2 and fold in row 3 (w)
     matrix[2] = 0.5 * (matrix[2] + matrix[3]);
