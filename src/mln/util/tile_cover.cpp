@@ -202,9 +202,18 @@ std::vector<OverscaledTileID> tileCover(const TileCoverParameters& state,
     const uint8_t overscaledZoom = std::max(overscaledZ.value_or(z), maxZoom);
     const bool flippedY = transform.getViewportMode() == ViewportMode::FlippedY;
 
-    const auto centerPoint = TileCoordinate::fromScreenCoordinate(
-                                 transform, z, {transform.getSize().width / 2.0, transform.getSize().height / 2.0})
-                                 .p;
+    // Over terrain the camera looks at a point on the ground, raised above sea level: the ray
+    // through the screen's centre meets sea level far beyond it, or never once the camera is
+    // low and flat, and the tiles around the point looked at then counted as far away and came
+    // in coarse. Measure from the camera's own centre there, as maplibre-gl-js does
+    // (transform.center); a flat map keeps the screen's centre.
+    const bool overTerrain = state.elevationProvider || transform.getCenterAltitude() != 0.0;
+    const auto centerPoint = overTerrain ? TileCoordinate::fromLatLng(z, transform.getLatLng()).p
+                                         : TileCoordinate::fromScreenCoordinate(
+                                               transform,
+                                               z,
+                                               {transform.getSize().width / 2.0, transform.getSize().height / 2.0})
+                                               .p;
 
     const vec3 centerCoord = {{centerPoint.x, centerPoint.y, 0.0}};
 
