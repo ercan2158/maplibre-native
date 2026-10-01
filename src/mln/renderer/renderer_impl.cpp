@@ -281,14 +281,18 @@ void Renderer::Impl::render(const RenderTree& renderTree, const std::shared_ptr<
             }
         }
         const std::set<UnwrappedTileID> demTileIDs = terrain->computeMeshCover(state, updateParameters);
-        // Full-size drape textures only for the finest tiles of the cover - the ones nearest the
-        // camera, where the ground is magnified most; the coarser tiles further out get a quarter
-        // of the memory. At 1024 px each target costs ~9 MB with its stencil, and a pitched cover
-        // over relief runs to dozens of them: all full size, an older phone ran out of GPU memory.
+        // Full-size drape textures only for the finest two zoom levels of the cover - the ones
+        // nearest the camera, where the ground is magnified most; the coarser tiles further out
+        // get a quarter of the memory. At 1024 px each target costs ~9 MB with its stencil, and a
+        // pitched cover over relief runs to dozens of them: all full size, an older phone ran out
+        // of GPU memory. The finest level alone was too few: a single deeper tile at the screen's
+        // bottom edge dropped the tiles around the focus to a quarter, and the view blurred on
+        // and off as the camera moved.
         uint8_t finestZoom = 0;
         for (const auto& id : demTileIDs) finestZoom = std::max(finestZoom, id.canonical.z);
         for (const auto& id : demTileIDs) {
-            const uint32_t size = id.canonical.z >= finestZoom ? drapeTileSize * drapeQualityFactor : drapeTileSize;
+            const uint32_t size = id.canonical.z + 1 >= finestZoom ? drapeTileSize * drapeQualityFactor
+                                                                   : drapeTileSize;
             texturePool.createRenderTarget(context, id, renderTreeParameters.backgroundColor, size);
         }
         texturePool.removeStaleRenderTargets(demTileIDs);
