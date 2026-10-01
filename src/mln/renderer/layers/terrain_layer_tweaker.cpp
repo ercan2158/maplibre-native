@@ -23,6 +23,7 @@ void TerrainLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamet
     if (layerGroup.empty() || !terrain) {
         return;
     }
+    const bool isDepthPass = &layerGroup == terrain->getDepthLayerGroup().get();
 
     auto& context = parameters.context;
 
@@ -76,7 +77,7 @@ void TerrainLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamet
         // depth, projected with it, against what this pass packs.
         mat4 matrix;
         parameters.state.matrixFor(matrix, tileID);
-        if (&layerGroup == terrain->getDepthLayerGroup().get()) {
+        if (isDepthPass) {
             matrix::multiply(matrix, parameters.transformParams.projMatrix, matrix);
 #if !MLN_RENDER_BACKEND_OPENGL
             matrix[2] = 0.5 * (matrix[2] + matrix[3]);
@@ -112,6 +113,9 @@ void TerrainLayerTweaker::execute(LayerGroupBase& layerGroup, const PaintParamet
 
 #if MLN_UBO_CONSOLIDATION
     const size_t drawableUBOVectorSize = sizeof(TerrainDrawableUBO) * drawableUBOVector.size();
+    // One buffer per layer group: the surface and the depth pass project differently, and a
+    // shared buffer left the surface drawn with the depth pass's matrices, written last.
+    auto& drawableUniformBuffer = isDepthPass ? depthDrawableUniformBuffer : surfaceDrawableUniformBuffer;
     if (!drawableUniformBuffer || drawableUniformBuffer->getSize() < drawableUBOVectorSize) {
         drawableUniformBuffer = context.createUniformBuffer(
             drawableUBOVector.data(), drawableUBOVectorSize, false, true);
