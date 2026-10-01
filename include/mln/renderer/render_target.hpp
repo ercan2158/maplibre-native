@@ -1,5 +1,6 @@
 #pragma once
 
+#include <mln/shaders/layer_ubo.hpp>
 #include <mln/gfx/types.hpp>
 #include <mln/tile/tile_id.hpp>
 #include <mln/util/size.hpp>
