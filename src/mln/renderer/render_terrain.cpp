@@ -174,7 +174,11 @@ std::set<UnwrappedTileID> RenderTerrain::computeMeshCover(
     if (overscaledZoom < static_cast<int32_t>(zoomRange.min)) {
         return out;
     }
-    const int32_t idealZoom = std::min<int32_t>(zoomRange.max, overscaledZoom);
+    // One level above the view's zoom, as maplibre-gl-js does (its terrain source cache's
+    // deltaZoom): a drape target of 1024 px then still gives the view about a texel per point,
+    // as sharp to the eye as meshing at the view's zoom, which doubled the GPU's time and cost
+    // a phone a third of its frames on a mountain road.
+    const int32_t idealZoom = std::min<int32_t>(zoomRange.max, std::max<int32_t>(0, overscaledZoom - 1));
     for (const auto& id : util::tileCover(
              coverParams, static_cast<uint8_t>(idealZoom), zoomRange, static_cast<uint8_t>(overscaledZoom))) {
         out.insert(id.toUnwrapped());
