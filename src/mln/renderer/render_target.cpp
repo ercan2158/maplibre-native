@@ -108,17 +108,15 @@ void RenderTarget::setDrapeTileID(const UnwrappedTileID& id) {
                        static_cast<float>(getTexture()->getSize().width)};
 }
 
-void RenderTarget::updateDrapeGlobalUBO(const shaders::GlobalPaintParamsUBO& params, gfx::Context& context_) {
+void RenderTarget::updateDrapeGlobalUBO(const shaders::GlobalPaintParamsUBO& params, gfx::Context&) {
     if (!drapeTileID) {
         return;
     }
-    shaders::GlobalPaintParamsUBO drapeParams = params;
-    drapeParams.drape_tile = drapeTileValues;
-    if (!drapeGlobalUniformBuffer) {
-        drapeGlobalUniformBuffer = context_.createUniformBuffer(&drapeParams, sizeof(drapeParams), true);
-    } else {
-        drapeGlobalUniformBuffer->update(&drapeParams, sizeof(drapeParams));
-    }
+    // Kept, and written to the target's buffer only when the target renders: most drapes are
+    // cached on most frames, and writing every target's buffer every frame took a twentieth of
+    // the main thread with a pitched cover's sixty-odd targets.
+    pendingDrapeParams = params;
+    pendingDrapeParams->drape_tile = drapeTileValues;
 }
 
 RenderTarget::DrapeCoverage RenderTarget::computeDrapeCoverage(RenderOrchestrator& orchestrator,
@@ -411,6 +409,14 @@ RenderTarget::RenderResult RenderTarget::render(RenderOrchestrator& orchestrator
     // which carries the target tile in `drape_tile` for apply_drape_transform.
     auto& globalUniforms = context.mutableGlobalUniformBuffers();
     gfx::UniformBufferPtr previousGlobalPaintParams;
+    if (drapeTileID && pendingDrapeParams) {
+        if (!drapeGlobalUniformBuffer) {
+            drapeGlobalUniformBuffer = context.createUniformBuffer(
+                &*pendingDrapeParams, sizeof(*pendingDrapeParams), true);
+        } else {
+            drapeGlobalUniformBuffer->update(&*pendingDrapeParams, sizeof(*pendingDrapeParams));
+        }
+    }
     if (drapeTileID && drapeGlobalUniformBuffer) {
         previousGlobalPaintParams = globalUniforms.get(shaders::idGlobalPaintParamsUBO);
         globalUniforms.set(shaders::idGlobalPaintParamsUBO, drapeGlobalUniformBuffer);

@@ -167,6 +167,8 @@ protected:
     // apply_drape_transform; w = 1 marks an active drape target
     std::array<float, 4> drapeTileValues{{0, 0, 0, 0}};
     gfx::UniformBufferPtr drapeGlobalUniformBuffer;
+    /// This frame's global paint params with the target tile, written to the buffer on render
+    std::optional<shaders::GlobalPaintParamsUBO> pendingDrapeParams;
     // Coverage baked into the target texture by the last actual render. The
     // target keeps its previously rendered content whenever the currently
     // available coverage is strictly worse, so a drape never regresses to

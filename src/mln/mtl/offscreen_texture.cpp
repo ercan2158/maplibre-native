@@ -100,15 +100,22 @@ public:
     void swap() override {
         assert(commandBuffer);
         // A mipmapped target (a terrain drape) gets its smaller levels from what was just drawn
-        if (auto* texture = static_cast<Texture2D*>(colorTexture.get())->getMetalTexture();
-            texture && texture->mipmapLevelCount() > 1) {
+        auto* texture = static_cast<Texture2D*>(colorTexture.get())->getMetalTexture();
+        const bool drape = texture && texture->mipmapLevelCount() > 1;
+        if (drape) {
             if (auto* blit = commandBuffer->blitCommandEncoder()) {
                 blit->generateMipmaps(texture);
                 blit->endEncoding();
             }
         }
         commandBuffer->commit();
-        commandBuffer->waitUntilCompleted();
+        // A drape is only sampled by the frame's own passes, later on the same queue, which
+        // Metal runs in order: waiting for it here stalled the CPU once per drape re-render, and
+        // the frame rate fell to the forties whenever many drapes changed. Other targets are
+        // read back on the CPU (still images) and are waited for.
+        if (!drape) {
+            commandBuffer->waitUntilCompleted();
+        }
         commandBuffer.reset();
         renderPassDescriptor.reset();
     }
