@@ -1,6 +1,7 @@
 #include <mln/renderer/texture_pool.hpp>
 #include <mln/gfx/context.hpp>
 #include <mln/util/logging.hpp>
+#include <mln/gfx/texture2d.hpp>
 
 namespace mln {
 TexturePool::TexturePool(uint32_t tilesize)
